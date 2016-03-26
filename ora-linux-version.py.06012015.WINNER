@@ -1,0 +1,265 @@
+#!/usr/bin/python
+
+import  socket,getpass,time, os, fnmatch, shutil, sys, getopt, fileinput
+#import  xml.etree.ElementTree as ET
+
+def main(argv):
+
+   myuname = os.uname() 
+   print "myuname= ", myuname
+   myos = myuname[0]
+   print "myos=", myos
+
+   if myos != "Linux":
+      print "!!! This script is only for Linux, NOT", myos,"!!!"
+      sys.exit(0) 
+
+   old_oracle_version = ''
+   new_oracle_version = ''
+   database_instance = ''
+   oracle_root = "/orasw"
+
+   try:
+      opts, args = getopt.getopt(argv,"d:n:o:",["oldrev=","newrev=","dbinstance="])
+   except getopt.GetoptError:
+        print "USAGE:"
+        print 'ora-version.py -o <old_oracle_version> -n <new_oracle_version> -d <database_instance>'
+        print 'Examples:'
+        print 'ora-version.py -o 10.2.0 -n 11.2.0.4 -d tclms030'
+        print 'ora-version.py -o 11.2.0.4 -n 12.1.0.2 -d tclms030'
+        print ""
+        print "NEED HELLP? CALL ONCALL UNIX TEAM MEMBER: http://home.gmacinsurance.com/AppWho2Call/UpdateTeamOnCall.asp"
+        print "OR CALL Mike Howard: 330-808-9570"
+        sys.exit(2)
+   if (len(sys.argv) == 1 ):
+       print "USAGE:"
+       print 'ora-version.py -o <old_oracle_version> -n <new_oracle_version> -d <database_instance>'
+       print 'Examples:'
+       print 'ora-version.py -o 10.2.0 -n 11.2.0.4 -d tclms030'
+       print 'ora-version.py -o 11.2.0.4 -n 12.1.0.2 -d tclms030'
+       print ""
+       print "NEED HELP? CALL ONCALL UNIX TEAM MEMBER: http://home.gmacinsurance.com/AppWho2Call/UpdateTeamOnCall.asp"
+       print "OR CALL Mike Howard: 330-808-9570"
+       sys.exit(2)
+   for opt, arg in opts:
+      if opt == '-h':
+         print 'ora-version.py -o <old_oracle_version> -n <new_oracle_version> -d <database_instance>'
+         print "CALL ONCALL UNIX TEAM MEMBER: http://home.gmacinsurance.com/AppWho2Call/UpdateTeamOnCall.asp"
+         print "OR CALL Mike Howard: 330-808-9570"
+         sys.exit()
+      elif opt in ("-o", "--oldrev"):
+         old_oracle_version = arg
+      elif opt in ("-n", "--newrev"):
+         new_oracle_version = arg
+      elif opt in ("-d", "--dbinstance"):
+         database_instance = arg
+         database_instance = database_instance.upper()
+   old_oracle_path = oracle_root + '/' + database_instance + '/product/' + old_oracle_version 
+   new_oracle_path = oracle_root + '/' + database_instance + '/product/' + new_oracle_version 
+   print 'old_oracle_path is', old_oracle_path
+   print 'new_oracle_path is', new_oracle_path
+   print 'Old Oracle Version is "', old_oracle_version
+   print 'New Oracle Version is "', new_oracle_version
+   print 'Database Instance is "', database_instance
+   
+   #################################################
+   # Get the user name of who is running this program
+   myuser_name = getpass.getuser()
+
+   print "MyUser name = ", myuser_name
+
+   # Get system FQDN
+  
+   fqdn = socket.getfqdn()
+
+   print "FQDN =" , fqdn
+
+#   myuname = os.uname() 
+#   print "myuname= ", myuname
+#   myos = myuname[0]
+#   print "myos=", myos
+   
+
+   #set up timestamp
+   t = time.localtime()
+   timestamp = time.strftime('%b-%d-%Y_%H%M', t)
+
+
+   cluster_conf_org = "/etc/cluster/cluster.conf"
+   print "cluster_conf_org:",cluster_conf_org
+   cluster_conf_tmp = '/etc/cluster/' + 'cluster_org'
+   print "cluster_conf_tmp:",cluster_conf_tmp
+   cluster_conf_backup = '/etc/cluster/cluster.conf' + '.' + 'timestamp'
+   print "cluster_conf_backup:",cluster_conf_backup
+  
+   #Make timestamp backup copy of config file 
+   shutil.copy2(cluster_conf_org, cluster_conf_backup)
+   shutil.copy2(cluster_conf_org, cluster_conf_tmp)
+   
+   print 'timestamp=',timestamp 
+   print 'cluster_conf_org=',cluster_conf_org
+   print 'cluster_conf_backup=',cluster_conf_backup
+
+   for lines in fileinput.input(cluster_conf_tmp):
+     if "config_version=" in lines:
+      print "##################################################################"
+      print 'FOUND config_version=": ', lines 
+      old_cluster_root_xml = lines
+      print "##################################################################"
+      mylist = lines.split(" ")
+      print mylist
+      for mywords in mylist:
+        if "alias=" in mywords:
+         print mywords
+         subword = mywords.split("=")
+         print subword
+         mycluster= subword[1]
+         print "mycluster",mycluster
+        if "config_version=" in mywords:
+         print mywords
+         subword = mywords.split("=")
+         print subword
+         myrev= subword[1]
+         print "myrev=",myrev
+         # yank 1st and last chars (the double quotes)
+         myrev = myrev[1:-1]
+         print "myrev=",myrev
+         intmyrev = int(myrev) + 1
+         print "Next_rev=",intmyrev
+         newrev = str(intmyrev)
+         new_cluster_root_xml = "<cluster alias=" + mycluster + " config_version=" + '"' + newrev \
+         + '"' + " name=" + mycluster + ">" + "\n"     
+         print "old_cluster_root_xml =", old_cluster_root_xml
+         print "new_cluster_root_xml =", new_cluster_root_xml
+         continue
+      continue
+   fileinput.close()
+   
+   old_oracle_xml = '<orainstance home="' + old_oracle_path \
+   + '" listeners="lsnr_' + database_instance + '" name="' + database_instance \
+   + '" user=' + '"oracle"/>' 
+ 
+   new_oracle_xml = '<orainstance home="' + new_oracle_path \
+   + '" listeners="lsnr_' + database_instance + '" name="' + database_instance \
+   + '" user=' + '"oracle"/>'
+ 
+   old_oracle_xml1 = '<orainstancengic home="' + old_oracle_path \
+   + '" listeners="lsnr_' + database_instance + '" name="' + database_instance \
+   + '" user=' + '"oracle"/>' 
+ 
+   new_oracle_xml1 = '<orainstancengic home="' + new_oracle_path \
+   + '" listeners="lsnr_' + database_instance + '" name="' + database_instance \
+   + '" user=' + '"oracle"/>'
+
+   old_oracle_xml2 = '<orainstancengicswitch home="' + old_oracle_path \
+   + '" listeners="lsnr_' + database_instance + '" name="' + database_instance \
+   + '" user=' + '"oracle"/>' 
+ 
+   new_oracle_xml2 = '<orainstancengicswitch home="' + new_oracle_path \
+   + '" listeners="lsnr_' + database_instance + '" name="' + database_instance \
+   + '" user=' + '"oracle"/>'
+
+   old_oracle_xml3 = '<orainstancepstandby home="' + old_oracle_path \
+   + '" listeners="lsnr_' + database_instance + '" name="' + database_instance \
+   + '" user=' + '"oracle"/>' 
+ 
+   new_oracle_xml3 = '<orainstancepstandby home="' + new_oracle_path \
+   + '" listeners="lsnr_' + database_instance + '" name="' + database_instance \
+   + '" user=' + '"oracle"/>'
+
+   old_oracle_xml4 = '<orainstancelstandby home="' + old_oracle_path \
+   + '" listeners="lsnr_' + database_instance + '" name="' + database_instance \
+   + '" user=' + '"oracle"/>' 
+ 
+   new_oracle_xml4 = '<orainstancelstandby home="' + new_oracle_path \
+   + '" listeners="lsnr_' + database_instance + '" name="' + database_instance \
+   + '" user=' + '"oracle"/>'
+
+   for lines in fileinput.input(cluster_conf_tmp): 
+     if old_oracle_xml in lines:
+      print "##################################################################"
+      print 'FOUND old_oracle_xml: ', old_oracle_xml
+      print "##################################################################"
+      continue  
+     elif old_oracle_xml1 in lines:
+      print "##################################################################"
+      print 'FOUND old_oracle_xml1: ', old_oracle_xml1
+      print "##################################################################"
+      continue  
+     elif old_oracle_xml2 in lines:
+      print "##################################################################"
+      print 'FOUND old_oracle_xml2: ', old_oracle_xml2
+      print "##################################################################"
+      continue  
+     elif old_oracle_xml3 in lines:
+      print "##################################################################"
+      print 'FOUND old_oracle_xml3: ', old_oracle_xml3
+      print "##################################################################"
+      continue  
+     elif old_oracle_xml4 in lines:
+      print "##################################################################"
+      print 'FOUND old_oracle_xml4: ', old_oracle_xml4
+      print "##################################################################"
+      continue  
+   fileinput.close() 
+   
+   
+   for lines in fileinput.FileInput(cluster_conf_tmp , inplace=1): ## edit file in place
+     lines = lines.replace(old_cluster_root_xml,new_cluster_root_xml)
+     lines = lines.replace(old_oracle_xml,new_oracle_xml)
+     lines = lines.replace(old_oracle_xml1,new_oracle_xml1)
+     lines = lines.replace(old_oracle_xml2,new_oracle_xml2)
+     lines = lines.replace(old_oracle_xml3,new_oracle_xml3)
+     lines = lines.replace(old_oracle_xml4,new_oracle_xml4)
+     print lines,
+   fileinput.close()
+
+   # Now build string and call ccs_tool with updated cluster file
+
+   
+   ccs_tool = '/sbin/ccs_tool'
+  
+   ccs_tool_cmd = ccs_tool + ' update ' + cluster_conf_tmp
+
+   print 'ccs_tool_cmd =', ccs_tool_cmd
+   
+   # The below ccs_tools command is #'ed out 
+   # as we do not wish to actually run it presently
+   ccs_tool_output = os.system(ccs_tool_cmd)
+   #ccs_tool_output = 'OK DUMMY MESSAGE'
+
+   # Mail out message inforning the who ran this script
+   
+   #sender = myuser_name + '@' + fqdn
+   #print "sender = ", sender
+
+   #receivers = ['ITGUnixAdmins@NGIC.com']
+
+   #message = '\nFrom: ' + myuser_name + ' <' + sender + '>\n' \
+   #          + 'To: ' + 'ITGUnixAdmins' + ' <ITGUnixAdmins@NGIC.com>\n' \
+   #          + 'Subject: ora-version.py ran: ' + timestamp + ' on: ' + fqdn + '\n' \
+   #          + 'old_oracle_xml =\n' + old_oracle_xml + '\n' \
+   #          + 'new_oracle_xml =\n' + new_oracle_xml + '\n\n\n' \
+   #          + 'ccs_tools output:..\n' + ccs_tool_output + '\n'
+   #print 'message = ', message
+
+   # the block is #'ed out as my macbook does run smpt --locally
+   # works on our RHEL server which do run it.
+
+   #Block send the message via smtp
+   #try:
+   #  smtpObj = smtplib.SMTP('localhost')
+   #  smtpObj.sendmail(sender, receivers, message)
+   #  print "Successfully sent email"
+   #except SMTPException:
+   #  print "Error: unable to send email"
+  
+
+
+
+  
+
+
+if __name__ == "__main__":
+   main(sys.argv[1:])
+
