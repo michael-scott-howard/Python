@@ -28,8 +28,8 @@ def main(argv):
         print 'ora-version.py -o 10.2.0 -n 11.2.0.4 -d tclms030'
         print 'ora-version.py -o 11.2.0.4 -n 12.1.0.2 -d tclms030'
         print ""
-        print "NEED HELLP? CALL ONCALL UNIX TEAM MEMBER: http://home.gmacinsurance.com/AppWho2Call/UpdateTeamOnCall.asp"
-        print "OR CALL Mike Howard: 330-808-9570"
+        print "NEED HELLP? "
+        print "OR CALL Mike Howard: "
         sys.exit(2)
    if (len(sys.argv) == 1 ):
        print "USAGE:"
@@ -38,14 +38,14 @@ def main(argv):
        print 'ora-version.py -o 10.2.0 -n 11.2.0.4 -d tclms030'
        print 'ora-version.py -o 11.2.0.4 -n 12.1.0.2 -d tclms030'
        print ""
-       print "NEED HELP? CALL ONCALL UNIX TEAM MEMBER: http://home.gmacinsurance.com/AppWho2Call/UpdateTeamOnCall.asp"
-       print "OR CALL Mike Howard: 330-808-9570"
+       print "NEED HELP? CALL ONCALL UNIX TEAM M"
+       print "OR CALL Mike"
        sys.exit(2)
    for opt, arg in opts:
       if opt == '-h':
          print 'ora-version.py -o <old_oracle_version> -n <new_oracle_version> -d <database_instance>'
-         print "CALL ONCALL UNIX TEAM MEMBER: http://home.gmacinsurance.com/AppWho2Call/UpdateTeamOnCall.asp"
-         print "OR CALL Mike Howard: 330-808-9570"
+         print "CALL ONCALL UNIX TEAM MEMBER: "
+         print "OR CALL Mik"
          sys.exit()
       elif opt in ("-o", "--oldrev"):
          old_oracle_version = arg
